@@ -1,0 +1,985 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAACA Carbon Footprint Calculator - Full Flow</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'eaaca-blue': '#005A9C',
+                        'eaaca-blue-hover': '#00467F',
+                        'eaaca-green': '#78BE20',
+                        'eaaca-green-hover': '#65A31A',
+                        'eaaca-light': '#F8FAFC',
+                        'eaaca-dark': '#1E293B',
+                    },
+                    fontFamily: {
+                        'sans': ['Open Sans', 'sans-serif'],
+                        'heading': ['Montserrat', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+        .hero-bg-pattern { background-image: radial-gradient(#005A9C 0.5px, transparent 0.5px); background-size: 20px 20px; opacity: 0.05; }
+        .step-transition { transition: opacity 0.4s ease, transform 0.4s ease; display: none; }
+        .step-transition.active { display: block; }
+        
+        .selection-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 2px solid transparent; }
+        .selection-card.selected { border-color: #005A9C; background-color: #F0F7FF; box-shadow: 0 10px 30px -10px rgba(0, 90, 156, 0.15); }
+
+        .wall-row { transition: all 0.2s ease-in-out; border-left: 4px solid transparent; }
+        .wall-row:hover { background-color: #F8FAFC; }
+        .wall-row.expanded { border-left-color: #005A9C; background-color: #F0F7FF; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .modules-breakdown { max-height: 0; overflow: hidden; transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1); opacity: 0; }
+        .wall-row.expanded .modules-breakdown { max-height: 500px; opacity: 1; padding-top: 1rem; padding-bottom: 1rem; }
+
+        .modal-base { transition: all 0.3s ease; }
+        .modal-base.hidden { opacity: 0; pointer-events: none; transform: scale(0.95); }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.module-tooltip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: help;
+}
+.module-tooltip .tooltip-text {
+    visibility: hidden;
+    width: max-content;
+    max-width: 220px;
+    background-color: #1E293B;
+    color: #F8FAFC;
+    text-align: center;
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 50;
+    bottom: 130%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    font-size: 0.7rem;
+    text-transform: none;
+    font-weight: 400;
+    line-height: 1.4;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+}
+.module-tooltip .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #1E293B transparent transparent transparent;
+}
+.module-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(-3px);
+}    
+
+.wall-row.expanded .modules-breakdown {
+    overflow: visible !important;
+}
+
+#walls-list-container {
+    overflow: visible !important;
+}
+
+
+.wall-row {
+    position: relative;
+    z-index: 1;
+}
+.wall-row.expanded,
+.wall-row:hover {
+    z-index: 50;
+    border-radius: 1rem; 
+}
+</style>
+</head>
+<body class="bg-eaaca-light text-eaaca-dark antialiased flex flex-col min-h-screen">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <button onclick="goToStep(1)" class="flex items-center gap-2 hover:opacity-90 transition-opacity">
+                <img src="logo.png" alt="EAACA" class="h-10" onerror="this.outerHTML='<span class=\'font-heading font-extrabold text-3xl text-eaaca-blue tracking-tight\'>EAACA</span>'">
+                <span class="text-eaaca-dark font-normal text-lg ml-2 hidden sm:inline border-l-2 border-gray-200 pl-3">CO₂ Calculator</span>
+            </button>
+            <nav class="hidden md:flex gap-6 font-semibold text-sm text-gray-600">
+                <a href="#" class="hover:text-eaaca-blue transition-colors">About</a>
+                <a href="#" class="hover:text-eaaca-blue transition-colors">Knowledge Base</a>
+                <a href="#" class="hover:text-eaaca-blue transition-colors">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow pb-20">
+
+        <section id="step-1" class="step-transition active">
+            <div class="relative overflow-hidden bg-white">
+                <div class="absolute inset-0 hero-bg-pattern pointer-events-none"></div>
+                <div class="container mx-auto px-6 py-16 md:py-24 relative z-10">
+                    <div class="grid md:grid-cols-2 gap-12 items-center">
+                        <div class="max-w-xl">
+                            <div class="inline-block bg-blue-50 text-eaaca-blue font-semibold px-4 py-1.5 rounded-full text-sm mb-6 uppercase tracking-wider">
+                                LCA calculation tool
+                            </div>
+                            <h1 class="font-heading text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6 text-eaaca-dark">
+                                Build consciously. <br>
+                                <span class="text-eaaca-blue">Discover the carbon footprint of your wall.</span>
+                            </h1>
+                            <p class="text-lg text-gray-600 mb-10 leading-relaxed">
+                                Compare technologies, learn about the advantages of autoclaved aerated concrete and its unique ability to <strong>naturally recarbonate, meaning carbon dioxide absorption during the building's lifespan.</strong>
+                            </p>
+                            <div class="flex flex-col sm:flex-row gap-4">
+                                <button onclick="goToStep(2)" class="bg-eaaca-green hover:bg-eaaca-green-hover text-white font-heading font-bold py-4 px-8 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 transform hover:-translate-y-0.5">
+                                    Go to calculator
+                                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                                </button>
+                                <button onclick="toggleModal('how-it-works-modal', true)" class="bg-white border-2 border-gray-200 hover:border-eaaca-blue hover:text-eaaca-blue text-eaaca-dark font-heading font-bold py-4 px-8 rounded-lg transition-all duration-300 flex items-center justify-center gap-2">
+                                    <i data-lucide="info" class="w-5 h-5"></i> How it works?
+                                </button>
+                            </div>
+                        </div>
+                        <div class="relative h-[400px] md:h-[500px] flex items-center justify-center group">
+    <div class="absolute w-64 h-64 bg-eaaca-blue/10 rounded-full blur-3xl -top-10 -right-10"></div>
+    <div class="absolute w-72 h-72 bg-eaaca-green/10 rounded-full blur-3xl -bottom-10 -left-10"></div>
+    
+    <div class="relative z-10 w-full h-full rounded-[2rem] overflow-hidden shadow-2xl border-[6px] border-white bg-gray-100 transform transition-transform duration-500 hover:-translate-y-2">
+        
+        <img src="EAACA.jpg" alt="Modern AAC House" class="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 group-hover:scale-105" onerror="this.style.opacity='0'; this.parentElement.classList.add('bg-slate-200');">
+        
+        <div class="absolute inset-0 bg-gradient-to-t from-eaaca-dark/60 via-eaaca-dark/10 to-transparent z-10 pointer-events-none"></div>
+        
+        <div class="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-md p-5 rounded-2xl shadow-xl border border-white/60 z-20 transition-transform duration-500 group-hover:translate-y-[-4px]">
+            <div class="flex items-start gap-4">
+                <div class="bg-gradient-to-br from-eaaca-green to-eaaca-green-hover text-white p-2.5 rounded-xl shadow-md shrink-0 mt-1">
+                    <i data-lucide="leaf" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <p class="font-heading font-bold text-eaaca-dark leading-snug text-[15px]">
+                        Build responsibly – discover the carbon footprint of the partition throughout its life cycle.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="how-it-works-modal" class="modal-base fixed inset-0 z-[100] flex items-center justify-center p-4 bg-eaaca-dark/60 backdrop-blur-md hidden">
+            <div class="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+                <button onclick="toggleModal('how-it-works-modal', false)" class="absolute top-6 right-6 text-gray-400 hover:text-eaaca-blue transition-colors">
+                    <i data-lucide="x-circle" class="w-8 h-8"></i>
+                </button>
+                <div class="p-8 md:p-12">
+                    <div class="w-16 h-16 bg-blue-50 text-eaaca-blue rounded-2xl flex items-center justify-center mb-6">
+                        <i data-lucide="cpu" class="w-10 h-10"></i>
+                    </div>
+                    <h2 class="font-heading text-3xl font-extrabold text-eaaca-dark mb-6">Calculation Methodology</h2>
+                    <div class="space-y-6 text-gray-600 leading-relaxed">
+                        <p>The EAACA Calculator is designed as a professional engineering tool for assessing the global warming potential (GWP) of wall partitions.</p>
+                        <div class="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                            <h4 class="font-bold text-eaaca-dark mb-3 flex items-center gap-2"><i data-lucide="file-check" class="w-4 h-4 text-eaaca-green"></i> Norms and Standards</h4>
+                            <p class="text-sm">Calculations are performed in accordance with European standards <strong>EN 15804+A2</strong> (Sustainability of construction works) and <strong>EN 15978</strong> (Assessment of environmental performance of buildings).</p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-eaaca-dark mb-2">Life Cycle Assessment (LCA)</h4>
+                            <p class="text-sm">The analysis covers the full 50-year life cycle of the partition (stages A-D): from raw material production (A1-A3), through construction, to the use phase (B) - including <strong>recarbonation</strong> and insulation replacement - ending with demolition (C and D).</p>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-eaaca-dark mb-2">Environmental data sources</h4>
+                            <p class="text-sm">The algorithm uses third-party verified Type III <strong>(EPD)</strong> provided by manufacturers (e.g., Xella Polska) and recognized generic databases like <strong>ÖKOBAUDAT</strong>.</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleModal('how-it-works-modal', false); goToStep(2);" class="w-full mt-10 bg-eaaca-blue hover:bg-eaaca-blue-hover text-white font-heading font-bold py-4 rounded-xl transition-all">
+                        I understand, let's go to the calculator
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="custom-mat-modal" class="modal-base fixed inset-0 z-[100] flex items-center justify-center p-4 bg-eaaca-dark/60 backdrop-blur-md hidden">
+            <div class="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full p-8 relative">
+                <button onclick="toggleModal('custom-mat-modal', false)" class="absolute top-6 right-6 text-gray-400 hover:text-eaaca-blue transition-colors">
+                    <i data-lucide="x-circle" class="w-6 h-6"></i>
+                </button>
+                <h2 class="font-heading text-2xl font-extrabold text-eaaca-dark mb-2">Add Custom Material</h2>
+                <p class="text-sm text-gray-500 mb-6">Enter material details and LCA stage emissions.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Material Name</label>
+                        <input type="text" id="cmat-name" placeholder="e.g. Hempcrete" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-eaaca-blue">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Thermal Conductivity (λ) [W/mK]</label>
+                        <input type="number" step="0.01" id="cmat-lambda" placeholder="0.04" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-eaaca-blue">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <div class="col-span-2 text-xs font-bold text-gray-600 uppercase mb-1">Emissions [kg CO₂e]</div>
+                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">A1-A3 (Production)</label><input type="number" step="0.1" id="cmat-a1" class="w-full p-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">A4-A5 (Construction)</label><input type="number" step="0.1" id="cmat-a4" class="w-full p-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-[10px] font-bold text-eaaca-green uppercase mb-1">B1 (Recarbonation)</label><input type="number" step="0.1" id="cmat-b1" class="w-full p-2 border border-green-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">B4 (Replacement)</label><input type="number" step="0.1" id="cmat-b4" class="w-full p-2 border border-gray-300 rounded-lg text-sm"></div>
+                        <div><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">C+D (End of life)</label><input type="number" step="0.1" id="cmat-cd" class="w-full p-2 border border-gray-300 rounded-lg text-sm"></div>
+                    </div>
+                    <button onclick="saveCustomMat()" class="w-full mt-2 bg-eaaca-green hover:bg-eaaca-green-hover text-white font-bold py-3 rounded-xl transition-all shadow-md">
+                        Save to Database
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <section id="step-2" class="step-transition py-12 md:py-20">
+            <div class="container mx-auto px-6 max-w-5xl">
+                <div class="mb-12 max-w-3xl mx-auto">
+                    <div class="flex items-center justify-between relative">
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-gray-200 z-0"></div>
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-eaaca-blue z-0 transition-all duration-500" style="width: 33.33%;"></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(1)"><div class="w-10 h-10 rounded-full bg-eaaca-blue text-white flex items-center justify-center font-bold text-sm shadow-md"><i data-lucide="check" class="w-5 h-5"></i></div><span class="text-[10px] font-semibold mt-2 text-eaaca-blue uppercase">Start</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-10 h-10 rounded-full bg-eaaca-blue text-white border-4 border-white flex items-center justify-center font-bold text-sm shadow-md">2</div><span class="text-[10px] font-bold mt-2 text-eaaca-blue uppercase">Building type</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-10 h-10 rounded-full bg-white text-gray-400 border-2 border-gray-200 flex items-center justify-center font-bold text-sm">3</div><span class="text-[10px] font-semibold mt-2 text-gray-400 uppercase">Comparison</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-10 h-10 rounded-full bg-white text-gray-400 border-2 border-gray-200 flex items-center justify-center font-bold text-sm">4</div><span class="text-[10px] font-semibold mt-2 text-gray-400 uppercase">Configurator</span></div>
+                    </div>
+                </div>
+                <div class="text-center max-w-2xl mx-auto mb-12">
+                    <h2 class="font-heading text-3xl md:text-4xl font-extrabold text-eaaca-dark mb-4">Select building type</h2>
+                    <p class="text-gray-600">This will allow us to adjust wall types, standards and life cycle to specifics of the building.</p>
+                </div>
+                <div class="grid md:grid-cols-2 gap-8 mb-12">
+                    <div id="card-residential" onclick="selectObjectType('residential')" class="selection-card bg-white p-8 rounded-[2rem] border-2 border-gray-100 shadow-lg cursor-pointer relative flex flex-col items-center text-center group">
+                        <div class="checkmark-badge absolute top-6 right-6 w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center group-hover:border-eaaca-blue transition-colors bg-white z-20">
+                            <i data-lucide="check" class="w-4 h-4 text-eaaca-blue opacity-0 transition-opacity"></i>
+                        </div>
+                        <div class="w-full h-56 mb-6 rounded-2xl overflow-hidden bg-gray-100 relative">
+                            <img src="Domek.jpg" alt="Residential Construction" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'">
+                        </div>
+                        <h3 class="font-heading text-2xl font-bold text-eaaca-dark mb-3 group-hover:text-eaaca-blue transition-colors">Residential Buildings</h3>
+                        <p class="text-sm text-gray-500">Single-family homes and multi-family buildings.</p>
+                    </div>
+                    <div id="card-non-residential" onclick="selectObjectType('non-residential')" class="selection-card bg-white p-8 rounded-[2rem] border-2 border-gray-100 shadow-lg cursor-pointer relative flex flex-col items-center text-center group">
+                        <div class="checkmark-badge absolute top-6 right-6 w-7 h-7 rounded-full border-2 border-gray-200 flex items-center justify-center group-hover:border-eaaca-blue transition-colors bg-white z-20">
+                            <i data-lucide="check" class="w-4 h-4 text-eaaca-blue opacity-0 transition-opacity"></i>
+                        </div>
+                        <div class="w-full h-56 mb-6 rounded-2xl overflow-hidden bg-gray-100 relative">
+                            <img src="Nonresidential_2.jpg" alt="Non-residential buildings" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.style.display='none'">
+                        </div>
+                        <h3 class="font-heading text-2xl font-bold text-eaaca-dark mb-3 group-hover:text-eaaca-blue transition-colors">Commercial Construction</h3>
+                        <p class="text-sm text-gray-500">Office buildings, public utility buildings, industrial halls.</p>
+                    </div>
+                </div>
+                <div class="flex justify-end pt-8"><button id="btn-next-step" disabled onclick="goToStep(3)" class="bg-gray-200 text-gray-400 font-heading font-bold py-4 px-10 rounded-lg shadow-sm cursor-not-allowed transition-all duration-300 flex items-center gap-2">Proceed to comparison <i data-lucide="arrow-right" class="w-5 h-5"></i></button></div>
+            </div>
+        </section>
+
+        <section id="step-3" class="step-transition py-8 md:py-12">
+            <div class="container mx-auto px-4 lg:px-8 max-w-7xl">
+                <div class="mb-8 max-w-3xl mx-auto">
+                    <div class="flex items-center justify-between relative">
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-gray-200 z-0"></div>
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-eaaca-blue z-0 transition-all duration-500" style="width: 66.66%;"></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(1)"><div class="w-8 h-8 rounded-full bg-eaaca-blue text-white flex items-center justify-center text-xs shadow-md"><i data-lucide="check" class="w-4 h-4"></i></div><span class="text-[10px] font-semibold mt-1 text-eaaca-blue uppercase">Start</span></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(2)"><div class="w-8 h-8 rounded-full bg-eaaca-blue text-white flex items-center justify-center text-xs shadow-md"><i data-lucide="check" class="w-4 h-4"></i></div><span class="text-[10px] font-semibold mt-1 text-eaaca-blue uppercase">Building type</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-10 h-10 rounded-full bg-eaaca-blue text-white border-4 border-white flex items-center justify-center font-bold text-sm shadow-md">3</div><span class="text-[10px] font-bold mt-2 text-eaaca-blue uppercase">Comparison</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-8 h-8 rounded-full bg-white text-gray-400 border-2 border-gray-200 flex items-center justify-center text-xs">4</div><span class="text-[10px] font-semibold mt-1 text-gray-400 uppercase">Configurator</span></div>
+                    </div>
+                </div>
+                <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+                    <div>
+                        <h2 class="font-heading text-3xl font-extrabold text-eaaca-dark mb-3">Carbon Footprint Comparison</h2>
+                        <p class="text-gray-500 text-sm">Calculations based on 50-year lifecycle.</p>
+                    </div>
+                  <button onclick="createNewWall()" class="text-sm font-bold text-eaaca-blue hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-5 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 whitespace-nowrap shadow-sm border border-blue-200">
+    <i data-lucide="plus" class="w-4 h-4"></i> Add custom wall
+</button>
+                </div>
+                
+                <div class="flex overflow-x-auto border-b border-gray-200 gap-8 hide-scrollbar mb-6" id="tabs-container">
+                    <button onclick="switchTab('external')" id="tab-external" class="tab-btn pb-3 border-b-4 border-eaaca-blue text-eaaca-blue font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-colors">External Walls</button>
+                    <button onclick="switchTab('internal')" id="tab-internal" class="tab-btn pb-3 border-b-4 border-transparent text-gray-400 hover:text-eaaca-blue font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-colors">Internal Walls</button>
+                    <button onclick="switchTab('partition')" id="tab-partition" class="tab-btn pb-3 border-b-4 border-transparent text-gray-400 hover:text-eaaca-blue font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-colors">Partition Walls</button>
+                </div>
+
+                <div class="grid lg:grid-cols-12 gap-8 items-start">
+                    <div class="lg:col-span-7 space-y-4">
+                        <div class="flex justify-between text-xs font-semibold text-gray-500 uppercase px-4 mb-2">
+                            <span>Material solution</span>
+                            <span>Total CO₂e (kg/m²) - 50 years</span>
+                        </div>
+                        <div id="walls-list-container" class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            </div>
+                    </div>
+                    <div class="lg:col-span-5 lg:sticky lg:top-24">
+                        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full" id="right-panel">
+                            <div class="bg-eaaca-dark text-white p-6">
+                                <span class="text-eaaca-green text-xs font-bold uppercase tracking-wider mb-1 block">Analyzed system</span>
+                                <h3 id="detail-title" class="font-heading font-bold text-xl leading-tight">Select a wall to view details</h3>
+                            </div>
+                            
+                            <div id="detail-content" class="hidden flex-col flex-grow">
+                                <div class="p-4 bg-white border-b border-gray-100 flex justify-center items-center h-64 relative">
+                                    <div class="absolute inset-0 flex items-center justify-center z-0">
+                                        <i data-lucide="image" class="w-12 h-12 text-gray-200"></i>
+                                    </div>
+                                    <img id="detail-render" src="Domek.jpg" class="w-full h-full object-contain rounded-lg relative z-10 transition-opacity duration-300 opacity-0" onerror="this.style.opacity='0'">
+                                </div>
+                                <div class="p-6 flex-grow">
+                                    <h4 class="text-sm font-bold text-gray-700 uppercase mb-4 flex items-center gap-2">
+                                        <i data-lucide="layers" class="w-4 h-4"></i> Layer layout
+                                    </h4>
+                                    <table class="w-full text-sm text-left">
+                                        <thead class="text-xs text-gray-500 bg-gray-50 border-b border-gray-200 uppercase">
+                                            <tr><th class="px-3 py-2 font-semibold">Material</th><th class="px-3 py-2 font-semibold text-right">Thick. [cm]</th></tr>
+                                        </thead>
+                                        <tbody id="detail-layers-table" class="divide-y divide-gray-100"></tbody>
+                                    </table>
+                                </div>
+                                <div class="p-6 pt-0 bg-gray-50 mt-4">
+                                    <button onclick="goToStep(4)" class="w-full bg-white border-2 border-eaaca-blue text-eaaca-blue hover:bg-eaaca-blue hover:text-white font-bold py-3 rounded-lg transition-colors flex justify-center items-center gap-2">
+                                        Modify wall structure <i data-lucide="settings" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="step-4" class="step-transition py-8 md:py-12">
+            <div class="container mx-auto px-4 max-w-6xl">
+                <div class="mb-8 max-w-2xl mx-auto">
+                    <div class="flex items-center justify-between relative">
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 bg-gray-200 z-0"></div>
+                        <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-eaaca-blue z-0 transition-all duration-500" style="width: 100%;"></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(1)"><div class="w-8 h-8 rounded-full bg-eaaca-blue text-white flex items-center justify-center text-xs shadow-md"><i data-lucide="check" class="w-4 h-4"></i></div><span class="text-[10px] font-semibold mt-1 text-eaaca-blue uppercase">Start</span></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(2)"><div class="w-8 h-8 rounded-full bg-eaaca-blue text-white flex items-center justify-center text-xs shadow-md"><i data-lucide="check" class="w-4 h-4"></i></div><span class="text-[10px] font-semibold mt-1 text-eaaca-blue uppercase">Building type</span></div>
+                        <div class="z-10 flex flex-col items-center cursor-pointer" onclick="goToStep(3)"><div class="w-8 h-8 rounded-full bg-eaaca-blue text-white flex items-center justify-center text-xs shadow-md"><i data-lucide="check" class="w-4 h-4"></i></div><span class="text-[10px] font-semibold mt-1 text-eaaca-blue uppercase">Comparison</span></div>
+                        <div class="z-10 flex flex-col items-center"><div class="w-10 h-10 rounded-full bg-eaaca-blue text-white border-4 border-white flex items-center justify-center font-bold text-sm shadow-md">4</div><span class="text-[10px] font-bold mt-2 text-eaaca-blue uppercase">Configurator</span></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
+                   <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-200 pb-6 mb-6">
+    <div class="flex items-center gap-3">
+        <div class="bg-eaaca-blue text-white p-3 rounded-xl shadow-md"><i data-lucide="sliders" class="w-6 h-6"></i></div>
+        <div>
+            <h1 class="text-2xl font-extrabold text-blue-900">Multi-layer Partition Configurator</h1>
+            <p class="text-sm text-gray-500">Advanced Life Cycle Assessment (LCA) & U-value</p>
+        </div>
+    </div>
+    <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+        <input type="text" id="custom-wall-name" placeholder="Name your wall..." class="w-full sm:w-64 p-2.5 border border-gray-300 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-eaaca-blue shadow-sm">
+        <button onclick="saveCustomWall()" class="w-full sm:w-auto bg-eaaca-green hover:bg-eaaca-green-hover text-white font-bold py-2.5 px-5 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2 whitespace-nowrap">
+            <i data-lucide="save" class="w-4 h-4"></i> Save to current tab
+        </button>
+    </div>
+</div>
+                    <div class="mb-8">
+		<div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-3">
+    			<h2 class="text-lg font-bold text-gray-700">Edit wall layer layout</h2>
+   			<div class="flex flex-wrap gap-2">
+        		<button onclick="toggleModal('custom-mat-modal', true)" class="text-sm font-bold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 border border-purple-200">
+            		<i data-lucide="box" class="w-4 h-4"></i> Add custom material
+        		</button>
+        <button onclick="addLayer()" class="text-sm font-bold text-eaaca-blue hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors flex items-center gap-2 border border-blue-200">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Add layer
+        </button>
+    </div>
+</div>
+                        <div id="layers-container" class="space-y-3"></div>
+                    </div>
+                    
+                    <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                                <i data-lucide="thermometer" class="w-5 h-5 text-orange-500"></i> Heat transfer coefficient (U-value)
+                            </h3>
+                            <p class="text-xs text-gray-500">Calculated sum based on thermal conductivities (λ).</p>
+                        </div>
+                        <div class="text-right">
+                            <span id="u-value-display" class="text-3xl font-extrabold text-orange-500">0.00</span>
+                            <span class="text-sm font-bold text-gray-600">W/(m²K)</span>
+                        </div>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div class="bg-blue-50 p-6 rounded-xl border border-blue-200 shadow-inner flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-start mb-4">
+                                    <div><h2 class="text-lg font-bold text-blue-900 mb-1">Total footprint (LCA)</h2><p class="text-xs text-blue-700">Sum of emissions incl. recarbonation (B1)</p></div>
+                                    <div class="text-right"><p id="total-lca-materials-display" class="text-3xl font-extrabold text-blue-900 drop-shadow-sm">0.00</p><p class="text-xs font-bold text-blue-600">kg CO₂e / m²</p></div>
+                                </div>
+                                <div class="mt-4">
+                                    <div class="text-[10px] font-bold text-blue-800 mb-2 uppercase tracking-wide">Percentage share of materials in the life cycle:</div>
+                                    <div id="impact-bar" class="w-full h-3 bg-gray-200 rounded-full overflow-hidden flex shadow-inner"></div>
+                                    <div id="impact-legend" class="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-xs text-gray-600"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-slate-800 p-6 rounded-xl shadow-inner text-white flex flex-col relative overflow-hidden">
+                            <div class="absolute -top-10 -right-10 w-32 h-32 bg-eaaca-blue/30 rounded-full blur-2xl pointer-events-none"></div>
+                            <div class="flex justify-between items-start mb-6 relative z-10">
+                                <div><h2 class="text-lg font-bold text-white mb-1">Life Cycle Phases (A-D)</h2><p class="text-xs text-gray-400">50-year analysis</p></div>
+                                <div class="text-right"><p id="total-lca-display" class="text-3xl font-extrabold text-eaaca-green drop-shadow-sm">0.00</p><p class="text-xs font-bold text-gray-300">kg CO₂e / m²</p></div>
+                            </div>
+                            <div class="mt-auto space-y-3 relative z-10" id="lca-chart-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // BEZPIECZNE WYWOŁYWANIE IKON
+        function updateIcons() {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        }
+
+       // TAB LOGIC
+        let activeTab = 'external';
+
+        function createNewWall() {
+            selectedWallId_Krok3 = null; 
+            const nameInput = document.getElementById('custom-wall-name');
+            if (nameInput) nameInput.value = ''; // Czyszczenie pola nazwy
+            goToStep(4); 
+        }
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            selectedWallId_Krok3 = null;
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-eaaca-blue', 'text-eaaca-blue');
+                btn.classList.add('border-transparent', 'text-gray-400');
+            });
+
+            const activeBtn = document.getElementById('tab-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-gray-400');
+                activeBtn.classList.add('border-eaaca-blue', 'text-eaaca-blue');
+            }
+
+            renderWallsList();
+            updateRightPanel(null); 
+        }
+
+        // NAVIGATION LOGIC
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (!modal) return;
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function goToStep(step) {
+            document.querySelectorAll('.step-transition').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            const stepEl = document.getElementById('step-' + step);
+            if (stepEl) {
+                stepEl.classList.add('active');
+                
+                try {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } catch(e) {
+                    window.scrollTo(0,0);
+                }
+                
+                if (step === 3) {
+                    if(!selectedWallId_Krok3) {
+                        updateRightPanel(null); 
+                    }
+                    renderWallsList();
+                }
+                if (step === 4) {
+                    loadSelectedWallIntoConfigurator();
+                    renderLayers();
+                }
+            }
+        }
+
+        function selectObjectType(type) {
+            const cardRes = document.getElementById('card-residential');
+            const cardNonRes = document.getElementById('card-non-residential');
+            const btnNext = document.getElementById('btn-next-step');
+            
+            if (cardRes) cardRes.classList.remove('selected');
+            if (cardNonRes) cardNonRes.classList.remove('selected');
+            
+            document.querySelectorAll('.checkmark-badge').forEach(badge => {
+                const icon = badge.querySelector('svg') || badge.querySelector('i');
+                if (icon) icon.classList.add('opacity-0');
+            });
+            
+            if (type === 'residential' && cardRes) {
+                cardRes.classList.add('selected');
+                const badgeIcon = cardRes.querySelector('.checkmark-badge svg') || cardRes.querySelector('.checkmark-badge i');
+                if (badgeIcon) badgeIcon.classList.remove('opacity-0');
+            } else if (type === 'non-residential' && cardNonRes) {
+                cardNonRes.classList.add('selected');
+                const badgeIcon = cardNonRes.querySelector('.checkmark-badge svg') || cardNonRes.querySelector('.checkmark-badge i');
+                if (badgeIcon) badgeIcon.classList.remove('opacity-0');
+            }
+            
+            if (btnNext) {
+                btnNext.disabled = false;
+                btnNext.classList.remove('bg-gray-200', 'text-gray-400', 'cursor-not-allowed');
+                btnNext.classList.add('bg-eaaca-green', 'hover:bg-eaaca-green-hover', 'text-white', 'shadow-lg');
+            }
+        }
+
+        // DATABASE
+        const materialsDB = {
+            "aac_300": { name: "AAC Block (300 kg/m³)", epd_source: "EPD Xella Polska", color: "bg-green-500", lambda: 0.075, gwp: { a1_a3: 147, a4_a5: 8.75, b1: -60.3, b4: 0.0, c_d: -1.19 } },
+            "aac_500": { name: "AAC Block (500 kg/m³)", epd_source: "EPD Xella Polska", color: "bg-blue-500", lambda: 0.14, gwp: { a1_a3: 170.0, a4_a5: 9.99, b1: -76.2, b4: 0.0, c_d: -0.23 } },
+            "ceramic": { name: "Ceramic Block", epd_source: "Oekobaudat", color: "bg-red-500", lambda: 0.18, gwp: { a1_a3: 113.0, a4_a5: 4.97, b1: 0.0, b4: 0.0, c_d: -10.1 } },
+            "silicate": { name: "Silicate Block (1400 kg/m³)", epd_source: "Oekobaudat", color: "bg-teal-600", lambda: 0.80, gwp: { a1_a3: 189.0, a4_a5: 26.4, b1: -83.9, b4: 0.0, c_d: -3.34 } },
+            "eps_standard": { name: "EPS Insulation", epd_source: "Oekobaudat", color: "bg-orange-400", lambda: 0.038, gwp: { a1_a3: 45.0, a4_a5: 4.0, b1: 0.0, b4: 45.0, c_d: 15.0 } },
+            "mw_standard": { name: "Mineral Wool", epd_source: "Oekobaudat", color: "bg-yellow-500", lambda: 0.036, gwp: { a1_a3: 67.0, a4_a5: 6.0, b1: 0.0, b4: 80.0, c_d: 5.0 } },
+            "plaster_ext": { name: "External Light Plaster", epd_source: "Oekobaudat", color: "bg-gray-400", lambda: 0.80, gwp: { a1_a3: 180.0, a4_a5: 15.0, b1: 0.0, b4: 0.0, c_d: 2.0 } },
+            "plaster_int": { name: "Internal Plaster", epd_source: "Oekobaudat", color: "bg-slate-300", lambda: 0.40, gwp: { a1_a3: 120.0, a4_a5: 10.0, b1: 0.0, b4: 0.0, c_d: 1.0 } },
+            "gk_board": { name: "Gypsum Board (G-K)", epd_source: "Generic", color: "bg-gray-200", lambda: 0.25, gwp: { a1_a3: 250.0, a4_a5: 15.0, b1: 0.0, b4: 0.0, c_d: 5.0 } }
+        };
+
+        const wallDataRaw = [
+            // External Walls - usunięto numery z shortName
+            { id: 'v1', type: 'external', image: 'aac_300_single.jpg', name: 'AAC monolithic wall 36,5 cm 300 kg/m³ (36.5 cm)', shortName: 'AAC monolithic wall 36,5 cm', layers: [{ id: 'plaster_int', thick: '1.0' }, { id: 'aac_300', thick: '36.5' }, { id: 'plaster_ext', thick: '1.5' }] },
+            { id: 'v2', type: 'external', image: 'aac_500_eps.jpg', name: 'AAC 500 (24cm) + EPS (12cm)', shortName: 'AAC 24 cm + EPS 12 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'aac_500', thick: '24.0' }, { id: 'eps_standard', thick: '12.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+            { id: 'v3', type: 'external', image: 'aac_500_mw.jpg', name: 'AAC 500 (24cm) + Mineral Wool (12cm)', shortName: 'AAC 24 cm + Min. wool 12 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'aac_500', thick: '24.0' }, { id: 'mw_standard', thick: '12.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+            { id: 'v4', type: 'external', image: 'ceramic_eps.jpg', name: 'Ceramic Block (25cm) + EPS (16cm)', shortName: 'Clay bricks 25 cm + EPS 16 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'ceramic', thick: '25.0' }, { id: 'eps_standard', thick: '16.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+            { id: 'v5', type: 'external', image: 'ceramic_mw.jpg', name: 'Ceramic Block (25cm) + Mineral Wool (16cm)', shortName: 'Clay bricks 25 cm + Min. Wool 16 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'ceramic', thick: '25.0' }, { id: 'mw_standard', thick: '16.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+            { id: 'v6', type: 'external', image: 'silicate_eps.jpg', name: 'Silicate Block 1650 (18cm) + EPS (18cm)', shortName: 'CSU 18 cm + EPS 18 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'silicate', thick: '18.0' }, { id: 'eps_standard', thick: '18.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+            { id: 'v7', type: 'external', image: 'silicate_mw.jpg', name: 'Silicate Block 1650 (18cm) + Mineral Wool (18cm)', shortName: 'CSU 18 cm + Min. Wool 18 cm', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'silicate', thick: '18.0' }, { id: 'mw_standard', thick: '18.0' }, { id: 'plaster_ext', thick: '0.5' }] },
+
+            // Internal Walls
+            { id: 'i1', type: 'internal', image: 'aac_500_internal.jpg', name: 'Internal Wall AAC 500 (24 cm)', shortName: 'AAC 500 Uninsulated', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'aac_500', thick: '24.0' }, { id: 'plaster_int', thick: '1.5' }] },
+            { id: 'i2', type: 'internal', image: 'ceramic_internal.jpg', name: 'Internal Wall Ceramic (25 cm)', shortName: 'Ceramic Uninsulated', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'ceramic', thick: '25.0' }, { id: 'plaster_int', thick: '1.5' }] },
+            { id: 'i3', type: 'internal', image: 'silicate_internal.jpg', name: 'Internal Wall Silicate (18 cm)', shortName: 'Silicate Uninsulated', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'silicate', thick: '18.0' }, { id: 'plaster_int', thick: '1.5' }] },
+
+            // Partition Walls
+            { id: 'p1', type: 'partition', image: 'aac_partition.jpg', name: 'Partition Wall AAC (11.5 cm)', shortName: 'AAC 11.5 + Plaster', layers: [{ id: 'plaster_int', thick: '1.0' }, { id: 'aac_500', thick: '11.5' }, { id: 'plaster_int', thick: '1.0' }] },
+            { id: 'p2', type: 'partition', image: 'ceramic_partition.jpg', name: 'Partition Wall Ceramic (11.5 cm)', shortName: 'Ceramic 11.5 + Plaster', layers: [{ id: 'plaster_int', thick: '1.5' }, { id: 'ceramic', thick: '11.5' }, { id: 'plaster_int', thick: '1.5' }] },
+            { id: 'p3', type: 'partition', image: 'silicate_partition.jpg', name: 'Partition Wall Silicate (8 cm)', shortName: 'Silicate 8 + Plaster', layers: [{ id: 'plaster_int', thick: '1.0' }, { id: 'silicate', thick: '8.0' }, { id: 'plaster_int', thick: '1.0' }] },
+            { id: 'p4', type: 'partition', image: 'drywall_partition.jpg', name: 'Drywall System (G-K + Min. Wool)', shortName: 'Drywall System', layers: [{ id: 'gk_board', thick: '1.25' }, { id: 'mw_standard', thick: '7.5' }, { id: 'gk_board', thick: '1.25' }] }
+        ];
+
+        let wallData = [];
+        let selectedWallId_Krok3 = null; 
+        let currentLayers = [];
+
+        function calculateWallData() {
+            wallData = wallDataRaw.map(wall => {
+                let modules = { a1_a3: 0, a4_a5: 0, b1: 0, b4: 0, c_d: 0 };
+                let primaryColor = '#000';
+                wall.layers.forEach(l => {
+                    const mat = materialsDB[l.id];
+                    if(mat && (l.id.includes('aac') || l.id.includes('ceramic') || l.id.includes('silicate') || l.id.includes('custom'))) {
+                        const twColorMap = {'bg-green-500': '#22C55E', 'bg-blue-500': '#3B82F6', 'bg-red-500': '#EF4444', 'bg-teal-600': '#0D9488', 'bg-purple-500': '#A855F7'};
+                        primaryColor = twColorMap[mat.color] || '#005A9C';
+                    } else if (primaryColor === '#000' && l.id === 'gk_board') {
+                        primaryColor = '#9CA3AF';
+                    }
+                    const t = parseFloat(l.thick) / 100;
+                    if(mat) {
+                        modules.a1_a3 += mat.gwp.a1_a3 * t;
+                        modules.a4_a5 += mat.gwp.a4_a5 * t;
+                        modules.b1 += mat.gwp.b1 * t;
+                        modules.b4 += mat.gwp.b4 * t;
+                        modules.c_d += mat.gwp.c_d * t;
+                    }
+                });
+                const totalCO2 = modules.a1_a3 + modules.a4_a5 + modules.b1 + modules.b4 + modules.c_d;
+                return { ...wall, totalCO2, modules, color: primaryColor };
+            });
+        }
+        calculateWallData(); 
+
+        function renderWallsList() {
+            const container = document.getElementById('walls-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+            
+            const filteredWalls = wallData.filter(w => w.type === activeTab);
+            
+            if (filteredWalls.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-gray-500">No walls added in this category yet.</div>`;
+                return;
+            }
+
+            const maxCO2 = Math.max(...filteredWalls.map(w => w.totalCO2)) + 15;
+            
+            filteredWalls.forEach(wall => {
+                const barWidth = Math.max(0, (wall.totalCO2 / maxCO2) * 100);
+                const isActive = wall.id === selectedWallId_Krok3;
+                
+                container.innerHTML += `
+                    <div id="row-${wall.id}" class="wall-row border-b border-gray-100 cursor-pointer ${isActive ? 'expanded' : ''}" onclick="selectWall('${wall.id}')">
+                        <div class="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div class="md:w-5/12 flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 border border-gray-200 relative flex items-center justify-center">
+                                    <i data-lucide="image" class="w-5 h-5 text-gray-300 absolute z-0"></i>
+                                    <img src="${wall.image || 'Domek.jpg'}" alt="${wall.shortName}" class="w-full h-full object-cover relative z-10 transition-opacity" onerror="this.style.opacity='0'">
+                                </div>
+                                <span class="font-bold text-gray-800 text-sm leading-tight">${wall.shortName}</span>
+                            </div>
+                            <div class="md:w-7/12 flex items-center gap-4">
+                                <div class="flex-grow h-4 bg-gray-100 rounded-full overflow-hidden relative">
+                                    <div class="absolute top-0 left-0 h-full rounded-full transition-all duration-1000" style="width: ${barWidth}%; background-color: ${wall.color};"></div>
+                                </div>
+                                <div class="w-auto min-w-[5rem] text-right flex flex-col items-end justify-center">
+                                    <span class="font-heading font-extrabold text-lg text-eaaca-dark leading-none">${wall.totalCO2.toFixed(1)}</span>
+                                    <span class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-1">kg CO₂e/m²</span>
+                                </div>
+                                <i data-lucide="chevron-down" class="icon-chevron w-5 h-5 text-gray-400 transform transition-transform ${isActive ? 'rotate-180 text-eaaca-blue' : ''}"></i>
+                            </div>
+                        </div>
+                        <div class="modules-breakdown bg-white border-t border-gray-50 px-6">
+                            
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 pt-2">
+    <div class="text-center p-3 rounded-lg bg-gray-50 border border-gray-100">
+        <div class="module-tooltip flex-col items-center justify-center gap-0 mb-1 w-full">
+            <span class="text-[9px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Product Stage</span>
+            <div class="text-xs text-gray-500 uppercase font-bold flex items-center justify-center gap-1">
+                <i data-lucide="factory" class="w-3.5 h-3.5"></i> A1-A3 
+                <i data-lucide="info" class="w-3 h-3 text-gray-400 hover:text-eaaca-blue transition-colors ml-0.5"></i>
+            </div>
+            <span class="tooltip-text"><strong>Product Stage:</strong> raw material extraction, transport to the factory, and the material manufacturing process.</span>
+        </div>
+        <div class="text-sm font-semibold">${wall.modules.a1_a3.toFixed(1)}</div>
+    </div>
+    
+    <div class="text-center p-3 rounded-lg bg-gray-50 border border-gray-100">
+        <div class="module-tooltip flex-col items-center justify-center gap-0 mb-1 w-full">
+            <span class="text-[9px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">Construction</span>
+            <div class="text-xs text-gray-500 uppercase font-bold flex items-center justify-center gap-1">
+                <i data-lucide="truck" class="w-3.5 h-3.5"></i> A4-A5 
+                <i data-lucide="info" class="w-3 h-3 text-gray-400 hover:text-eaaca-blue transition-colors ml-0.5"></i>
+            </div>
+            <span class="tooltip-text"><strong>Construction Process:</strong> transport of materials to the construction site and the installation/construction process.</span>
+        </div>
+        <div class="text-sm font-semibold">${wall.modules.a4_a5.toFixed(1)}</div>
+    </div>
+    
+    <div class="text-center p-3 rounded-lg bg-green-50 border border-green-200">
+        <div class="module-tooltip flex-col items-center justify-center gap-0 mb-1 w-full">
+            <span class="text-[9px] text-green-600/70 uppercase font-bold tracking-wider mb-0.5">Use Stage</span>
+            <div class="text-xs text-eaaca-green uppercase font-bold flex items-center justify-center gap-1">
+                <i data-lucide="leaf" class="w-3.5 h-3.5"></i> B1 
+                <i data-lucide="info" class="w-3 h-3 text-green-500 hover:text-green-700 transition-colors ml-0.5"></i>
+            </div>
+            <span class="tooltip-text"><strong>Use Stage:</strong> e.g. natural recarbonation, meaning the absorption of CO₂ from the atmosphere.</span>
+        </div>
+        <div class="text-sm font-bold text-green-700">${wall.modules.b1 < 0 ? '' : '+'}${wall.modules.b1.toFixed(1)}</div>
+    </div>
+    
+    <div class="text-center p-3 rounded-lg ${wall.modules.b4 > 0 ? 'bg-orange-50 border border-orange-200' : 'bg-gray-50 border border-gray-100'}">
+        <div class="module-tooltip flex-col items-center justify-center gap-0 mb-1 w-full">
+            <span class="text-[9px] ${wall.modules.b4 > 0 ? 'text-orange-600/70' : 'text-gray-400'} uppercase font-bold tracking-wider mb-0.5">Replacement</span>
+            <div class="text-xs ${wall.modules.b4 > 0 ? 'text-orange-600' : 'text-gray-500'} uppercase font-bold flex items-center justify-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> B4 
+                <i data-lucide="info" class="w-3 h-3 ${wall.modules.b4 > 0 ? 'text-orange-400 hover:text-orange-600' : 'text-gray-400 hover:text-eaaca-blue'} transition-colors ml-0.5"></i>
+            </div>
+            <span class="tooltip-text"><strong>Replacement:</strong> emissions from replacing components (e.g., EPS/wool insulation) over a 50-year perspective.</span>
+        </div>
+        <div class="text-sm font-bold">${wall.modules.b4.toFixed(1)}</div>
+    </div>
+    
+    <div class="text-center p-3 rounded-lg bg-gray-50 border border-gray-100">
+        <div class="module-tooltip flex-col items-center justify-center gap-0 mb-1 w-full">
+            <span class="text-[9px] text-gray-400 uppercase font-bold tracking-wider mb-0.5">End of Life</span>
+            <div class="text-xs text-gray-500 uppercase font-bold flex items-center justify-center gap-1">
+                <i data-lucide="recycle" class="w-3.5 h-3.5"></i> C+D 
+                <i data-lucide="info" class="w-3 h-3 text-gray-400 hover:text-eaaca-blue transition-colors ml-0.5"></i>
+            </div>
+            <span class="tooltip-text"><strong>End of Life:</strong> demolition, waste transport, disposal, and benefits from recycling/reuse.</span>
+        </div>
+        <div class="text-sm font-semibold">${wall.modules.c_d.toFixed(1)}</div>
+    </div>
+</div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            updateIcons();
+        }
+
+        function selectWall(id) {
+            if(selectedWallId_Krok3 === id) {
+                selectedWallId_Krok3 = null;
+                document.querySelectorAll('.wall-row').forEach(row => {
+                    row.classList.remove('expanded');
+                    const icon = row.querySelector('.icon-chevron') || row.querySelector('svg.icon-chevron');
+                    if(icon) icon.classList.remove('rotate-180', 'text-eaaca-blue');
+                });
+                updateRightPanel(null);
+                return;
+            }
+
+            selectedWallId_Krok3 = id;
+            document.querySelectorAll('.wall-row').forEach(row => {
+                row.classList.remove('expanded');
+                const icon = row.querySelector('.icon-chevron') || row.querySelector('svg.icon-chevron');
+                if(icon) icon.classList.remove('rotate-180', 'text-eaaca-blue');
+            });
+            const selectedRow = document.getElementById(`row-${id}`);
+            if(selectedRow) {
+                selectedRow.classList.add('expanded');
+                const selectedIcon = selectedRow.querySelector('.icon-chevron') || selectedRow.querySelector('svg.icon-chevron');
+                if(selectedIcon) selectedIcon.classList.add('rotate-180', 'text-eaaca-blue');
+            }
+            updateRightPanel(wallData.find(w => w.id === id));
+        }
+
+        function updateRightPanel(wall) {
+            const titleEl = document.getElementById('detail-title');
+            const tbody = document.getElementById('detail-layers-table');
+            const detailContent = document.getElementById('detail-content');
+            const imgEl = document.getElementById('detail-render');
+            
+            if (!wall) {
+                if(titleEl) titleEl.textContent = "Select a wall to view details";
+                if(detailContent) detailContent.classList.add('hidden');
+                return;
+            }
+
+            if(detailContent) {
+                detailContent.classList.remove('hidden');
+                detailContent.classList.add('flex');
+            }
+
+            if(titleEl) titleEl.textContent = wall.name;
+            
+            if(imgEl) {
+                // Załadowanie oryginalnego zdjęcia z object-contain
+                imgEl.src = wall.image || 'Domek.jpg';
+                imgEl.style.opacity = '1';
+            }
+
+            if(tbody) {
+                tbody.innerHTML = wall.layers.map(layer => `<tr><td class="px-3 py-2 text-gray-700">${materialsDB[layer.id]?.name || layer.id}</td><td class="px-3 py-2 text-right font-semibold text-eaaca-dark">${layer.thick}</td></tr>`).join('');
+            }
+        }
+
+        // SAVE CUSTOM MATERIAL
+        function saveCustomMat() {
+            const name = document.getElementById('cmat-name').value || 'Custom Material';
+            const lambda = parseFloat(document.getElementById('cmat-lambda').value) || 0.1;
+            const a1 = parseFloat(document.getElementById('cmat-a1').value) || 0;
+            const a4 = parseFloat(document.getElementById('cmat-a4').value) || 0;
+            const b1 = parseFloat(document.getElementById('cmat-b1').value) || 0;
+            const b4 = parseFloat(document.getElementById('cmat-b4').value) || 0;
+            const cd = parseFloat(document.getElementById('cmat-cd').value) || 0;
+
+            const matId = 'custom_mat_' + Date.now();
+            materialsDB[matId] = {
+                name: name,
+                epd_source: "User Data",
+                color: "bg-purple-500", 
+                lambda: lambda,
+                gwp: { a1_a3: a1, a4_a5: a4, b1: b1, b4: b4, c_d: cd }
+            };
+
+            toggleModal('custom-mat-modal', false);
+            
+            // Czyszczenie pol formularza
+            document.querySelectorAll('#custom-mat-modal input').forEach(input => input.value = '');
+
+            if (document.getElementById('step-4').classList.contains('active')) {
+                renderLayers();
+            }
+        }
+
+        // CONFIGURATOR LOGIC
+function loadSelectedWallIntoConfigurator() {
+    const nameInput = document.getElementById('custom-wall-name');
+    if(!selectedWallId_Krok3) {
+        currentLayers = [{ id: "aac_500", thickCm: 24.0 }];
+        if (nameInput) nameInput.value = '';
+        return;
+    }
+    const wall = wallData.find(w => w.id === selectedWallId_Krok3);
+    if(wall) {
+        currentLayers = wall.layers.map(l => ({ id: l.id, thickCm: parseFloat(l.thick) }));
+        // Załaduj nazwę do pola, jeśli to ściana użytkownika
+        if (nameInput) nameInput.value = wall.id.startsWith('user_') ? wall.name : '';
+    }
+}
+        function renderLayers() {
+            const container = document.getElementById('layers-container');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            currentLayers.forEach((layer, index) => {
+                const optionsHTML = Object.keys(materialsDB).map(k => `<option value="${k}" ${k === layer.id ? 'selected' : ''}>${materialsDB[k].name}</option>`).join('');
+                container.innerHTML += `
+                    <div class="flex flex-col md:flex-row gap-4 items-start md:items-center bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <div class="w-full md:w-2/3">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Layer ${index + 1}</label>
+                            <select onchange="updateLayer(${index}, 'id', this.value)" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-eaaca-blue outline-none">${optionsHTML}</select>
+                            <div class="text-[10px] mt-1 text-gray-500 italic">EPD Source: <span class="font-bold ${materialsDB[layer.id]?.epd_source === 'User Data' ? 'text-purple-500' : 'text-eaaca-blue'}">${materialsDB[layer.id]?.epd_source || 'Unknown'}</span></div>
+                        </div>
+                        <div class="w-full md:w-1/4">
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Thickness (cm)</label>
+                            <input type="number" step="0.1" value="${layer.thickCm}" oninput="updateLayer(${index}, 'thickCm', this.value)" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-bold text-right focus:ring-2 focus:ring-eaaca-blue outline-none">
+                        </div>
+                        <button onclick="removeLayer(${index})" class="text-red-500 mt-5 md:mt-0 p-2 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    </div>`;
+            });
+            updateIcons();
+            calculateAndDisplayResult();
+        }
+
+        function addLayer() { currentLayers.push({ id: "eps_standard", thickCm: 15.0 }); renderLayers(); }
+        function removeLayer(index) { if (currentLayers.length > 1) { currentLayers.splice(index, 1); renderLayers(); } }
+        function updateLayer(index, field, value) {
+            if (field === 'thickCm') currentLayers[index][field] = parseFloat(value) || 0;
+            else currentLayers[index][field] = value;
+            if (field === 'id') renderLayers(); else calculateAndDisplayResult();
+        }
+
+        function calculateAndDisplayResult() {
+            let totals = { a1_a3: 0, a4_a5: 0, b1: 0, b4: 0, c_d: 0, all: 0 };
+            const impactsLCA = []; 
+            let rTotal = 0.17; 
+            
+            currentLayers.forEach(layer => {
+                const mat = materialsDB[layer.id];
+                if(!mat) return;
+                const tM = layer.thickCm / 100;
+                
+                if (mat.lambda) {
+                    rTotal += (tM / mat.lambda);
+                }
+
+                const a1_a3 = mat.gwp.a1_a3 * tM; 
+                const a4_a5 = mat.gwp.a4_a5 * tM; 
+                const b1 = mat.gwp.b1 * tM; 
+                const b4 = mat.gwp.b4 * tM; 
+                const c_d = mat.gwp.c_d * tM;
+                
+                const layerTotal = a1_a3 + a4_a5 + b1 + b4 + c_d;
+                totals.a1_a3 += a1_a3; totals.a4_a5 += a4_a5; totals.b1 += b1; totals.b4 += b4; totals.c_d += c_d; totals.all += layerTotal;
+                
+                impactsLCA.push({ name: mat.name, impact: layerTotal, color: mat.color });
+            });
+            
+            const uValue = 1 / rTotal;
+            document.getElementById('u-value-display').innerText = uValue.toFixed(2);
+
+            document.getElementById('total-lca-materials-display').innerText = totals.all.toFixed(2);
+            document.getElementById('total-lca-display').innerText = totals.all.toFixed(2);
+            
+            const barContainer = document.getElementById('impact-bar');
+            const legendContainer = document.getElementById('impact-legend');
+            barContainer.innerHTML = ''; legendContainer.innerHTML = '';
+            
+            const positiveTotal = impactsLCA.reduce((sum, item) => sum + Math.max(0, item.impact), 0);
+            impactsLCA.forEach(item => {
+                const percent = positiveTotal > 0 ? (Math.max(0, item.impact) / positiveTotal) * 100 : 0;
+                if (percent > 0) {
+                    barContainer.innerHTML += `<div class="h-full ${item.color} transition-all duration-500 border-r border-white/30 last:border-r-0" style="width: ${percent}%"></div>`;
+                    legendContainer.innerHTML += `<div class="flex items-center gap-1"><div class="w-2.5 h-2.5 rounded-sm ${item.color}"></div><span><strong>${percent.toFixed(0)}%</strong> ${item.name}</span></div>`;
+                }
+            });
+            
+            const lcaContainer = document.getElementById('lca-chart-container');
+            lcaContainer.innerHTML = '';
+            const lcaData = [
+                { label: 'A1-A3 (Production)', value: totals.a1_a3, color: 'bg-slate-400' }, 
+                { label: 'A4-A5 (Construction)', value: totals.a4_a5, color: 'bg-slate-500' }, 
+                { label: 'B1 (Recarbonation)', value: totals.b1, color: 'bg-eaaca-green' }, 
+                { label: 'B4 (Insulation repl.)', value: totals.b4, color: 'bg-orange-400' }, 
+                { label: 'C+D (End of life)', value: totals.c_d, color: 'bg-slate-600' }
+            ];
+            const maxVal = Math.max(...lcaData.map(d => Math.abs(d.value)), 10);
+            
+            lcaData.forEach(item => {
+                const widthPercent = (Math.abs(item.value) / maxVal) * 50; 
+                let barHTML = item.value < 0 ? 
+                    `<div class="w-1/2 flex justify-end h-full pr-[1px]"><div class="${item.color} h-full rounded-l-sm" style="width: ${widthPercent}%;"></div></div><div class="w-px bg-gray-500 h-full z-10"></div><div class="w-1/2 flex justify-start h-full pl-[1px]"></div>` : 
+                    `<div class="w-1/2 flex justify-end h-full pr-[1px]"></div><div class="w-px bg-gray-500 h-full z-10"></div><div class="w-1/2 flex justify-start h-full pl-[1px]"><div class="${item.color} h-full rounded-r-sm" style="width: ${widthPercent}%;"></div></div>`;
+                
+                lcaContainer.innerHTML += `
+                    <div class="flex flex-col">
+                        <div class="flex justify-between text-[10px] font-bold text-gray-300 mb-0.5">
+                            <span>${item.label}</span>
+                            <span class="${item.value < 0 ? 'text-eaaca-green' : (item.value > 20 && item.label.includes('B4') ? 'text-orange-400' : 'text-white')}">${item.value > 0 ? '+' : ''}${item.value.toFixed(2)}</span>
+                        </div>
+                        <div class="h-3 w-full bg-slate-700 rounded-sm flex items-center overflow-hidden relative">${barHTML}</div>
+                    </div>`;
+            });
+        }
+
+        // SAVE CUSTOM WALL (to active tab)
+function saveCustomWall() {
+    const newId = 'user_' + Date.now();
+    
+    // Pobranie nazwy z pola input, z fallbackiem na wygenerowaną nazwę
+    const nameInput = document.getElementById('custom-wall-name');
+    const customName = (nameInput && nameInput.value.trim() !== '') 
+        ? nameInput.value.trim() 
+        : 'Custom Configuration (' + activeTab + ')';
+
+    let shortLabel = (nameInput && nameInput.value.trim() !== '')
+        ? nameInput.value.trim()
+        : currentLayers.map(l => (materialsDB[l.id]?.name || 'Mat').split(' ')[0]).join(' + ');
+
+    const newWall = {
+        id: newId,
+        type: activeTab,
+        image: 'Domek.jpg', // Bezpieczny placeholder obrazka dla własnych ścian
+        name: customName,
+        shortName: shortLabel,
+        layers: JSON.parse(JSON.stringify(currentLayers.map(l => ({
+            id: l.id, 
+            thick: l.thickCm.toString()
+        }))))
+    };
+
+    wallDataRaw.push(newWall);
+    calculateWallData();
+
+    goToStep(3);
+    switchTab(activeTab);
+    
+    setTimeout(() => { selectWall(newId); }, 100);
+}
+        // INIT
+        window.onload = () => {
+            updateIcons();
+            goToStep(1); 
+        };
+    </script>
+</body>
+</html>
