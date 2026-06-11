@@ -1,3 +1,110 @@
-<html lang="en">
-<html>
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xella - bloczki ścienne</title>
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f9f9f9;
+            color: #333333;
+            line-height: 1.6;
+        }
+
+        /* Nagłówek */
+        header {
+            background-color: #ffffff;
+            padding: 20px 10%;
+            border-bottom: 5px solid #ffcc00; /* Charakterystyczny żółty Ytong */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            color: #222222;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        /* Sekcja główna (Hero) */
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 80px 20px;
+            min-height: 60vh;
+        }
+
+        h1 {
+            font-size: 3rem;
+            color: #222222;
+            margin-bottom: 20px;
+        }
+
+        p.description {
+            font-size: 1.2rem;
+            color: #555555;
+            max-width: 600px;
+            margin-bottom: 40px;
+        }
+
+        /* Przycisk / Link */
+        .cta-button {
+            display: inline-block;
+            background-color: #ffcc00; /* Żółty akcent */
+            color: #111111;
+            text-decoration: none;
+            padding: 16px 32px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 3px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .cta-button:hover {
+            background-color: #e6b800;
+            transform: translateY(-2px);
+        }
+
+        /* Stopka */
+        footer {
+            background-color: #222222;
+            color: #aaaaaa;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9rem;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Xella</div>
+    </header>
+
+    <main>
+        <h1>Buduj energooszczędnie</h1>
+        <p class="description">
+            Wybierz sprawdzone systemy ścienne, które gwarantują doskonałą parametry akustyczne
+        </p>
+        
+        <a href="https://www.xella.pl/" class="cta-button">dowiedz się wiecej o bloczkach Ytong i Silka</a>
+    </main>
+
+</body>
 </html>
